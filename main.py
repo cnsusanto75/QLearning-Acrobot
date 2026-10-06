@@ -63,6 +63,10 @@ class QLearningAgent:
         self.q_table[discrete_state][action] = target_q
         pass
 
+    def decay_epsilon(self):
+        self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
+
+
 env = gym.make('Acrobot-v1', render_mode="human")
 observation, info = env.reset()
 
