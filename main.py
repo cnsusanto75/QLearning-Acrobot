@@ -30,7 +30,7 @@ class QLearningAgent:
             #theta1 is the angle of the first joint, 0 represents downwards
             #theta2 is the angle of the second joint, relative to the first. 0 represents the same angle
         ]
-        self.q_table = np.zeros((self.num_bins, self.action_size))
+        self.q_table = np.zeros(([self.num_bins] * 6 + [self.action_size]))
 
     def discretize_state(self, state):
         discrete_state = []
@@ -43,12 +43,25 @@ class QLearningAgent:
             discrete_state.append(bin_idx)
         return tuple(discrete_state)
 
-    def get_state(self, state, training = True):
+    def get_action(self, state, training = True):
         if training and np.random.random() < self.epsilon:
             return np.random.randint(self.action_size)
         else:
             discrete_state = self.discretize_state(state)
             return np.argmax(self.q_table[discrete_state])
+
+    def update(self, state, action, reward, next_state, terminal):
+        discrete_state = self.discretize_state(state)
+        discrete_next_state = self.discretize_state(next_state)
+        current_q = self.q_table[discrete_state][action]
+
+        if terminal:
+            target_q = reward
+        else:
+            target_q = (1 - self.learning_rate) * current_q + self.learning_rate * (reward + self.discount_factor * np.max(self.q_table[discrete_next_state]))
+
+        self.q_table[discrete_state][action] = target_q
+        pass
 
 env = gym.make('Acrobot-v1', render_mode="human")
 observation, info = env.reset()
