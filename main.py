@@ -66,24 +66,36 @@ class QLearningAgent:
     def decay_epsilon(self):
         self.epsilon = max(self.epsilon_min, self.epsilon * self.epsilon_decay)
 
+def train_agent(num_episodes = 1000, render = False):
+    env = gym.make('Acrobot-v1', render_mode = 'human' if render else None)
+    agent = QLearningAgent()
+    episode_rewards = []
+    for episode in range(num_episodes):
+        state, _ = env.reset()
+        total_reward = 0
+        episode_over = False
+        while not episode_over:
+            action = agent.get_action(state)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
 
-env = gym.make('Acrobot-v1', render_mode="human")
-observation, info = env.reset()
+            agent.update(state, action, reward, next_state, done)
 
-print(f"Starting observation: {observation}")
+            state = next_state
 
-for _ in range(5):
-    episode_over = False
-    total_reward = 0.0
+        agent.decay_epsilon()
+        episode_rewards.append(total_reward)
 
-    while not episode_over:
-        action = env.action_space.sample()
-        observation, reward, terminated, truncated, info = env.step(action)
-        total_reward += reward
-        episode_over = terminated or truncated
+        if (episode + 1) % 100 == 0:
+            avg_reward = np.mean(episode_rewards[-100:])
+            print(f"Episode {episode + 1}/{num_episodes}, "
+                  f"Avg Reward (last 100): {avg_reward:.2f}, "
+                  f"Epsilon: {agent.epsilon:.3f}")
 
-    print(f"Total reward: {total_reward}")
+    env.close()
+    print(f"\nTraining complete!\n")
+    return agent, episode_rewards
 
-    env.reset()
 
-env.close()
+def main():
+    pass
