@@ -1,8 +1,8 @@
 import gymnasium as gym
 import numpy as np
 class QLearningAgent:
-    def __init__(self, num_bins = 10, state_size = 6, action_size = 3, learning_rate=0.01, discount_factor=0.9,
-                 epsilon=1.0, epsilon_decay = 0.995, epsilon_min = 0.1):
+    def __init__(self, num_bins = 10, state_size = 6, action_size = 3, learning_rate=0.2, discount_factor=0.99,
+                 epsilon=1.0, epsilon_decay = 0.9995, epsilon_min = 0.05):
         """
         :param state_size: Number of states in the environment
         :param action_size: Number of possible actions
@@ -26,11 +26,11 @@ class QLearningAgent:
             (-1, 1), #cosine of theta2
             (-1, 1), #sine of theta2
             (-4 * np.pi, 4 * np.pi), #angular velocity of theta1
-            (-9 * np.pi, 9 * np.pi), #angular velocity of theta2
+            (-4 * np.pi, 4 * np.pi), #angular velocity of theta2
             #theta1 is the angle of the first joint, 0 represents downwards
             #theta2 is the angle of the second joint, relative to the first. 0 represents the same angle
         ]
-        self.q_table = np.zeros(([self.num_bins] * 6 + [self.action_size]))
+        self.q_table = np.zeros(((self.num_bins,) * self.state_size + (self.action_size,)))
 
     def discretize_state(self, state):
         discrete_state = []
@@ -39,7 +39,7 @@ class QLearningAgent:
             #clip s into bounds
             s = np.clip(s, lower, upper)
             #sort s into bins to discretize
-            bin_idx = int(s - lower) / ((upper - lower) * (self.num_bins - 1))
+            bin_idx = int((s - lower) / (upper - lower) * (self.num_bins - 1))
             discrete_state.append(bin_idx)
         return tuple(discrete_state)
 
@@ -56,11 +56,11 @@ class QLearningAgent:
         current_q = self.q_table[discrete_state][action]
 
         if terminal:
-            target_q = reward
+            best_next_q = 0
         else:
-            target_q = (1 - self.learning_rate) * current_q + self.learning_rate * (reward + self.discount_factor * np.max(self.q_table[discrete_next_state]))
+            best_next_q = max(self.q_table[discrete_next_state])
 
-        self.q_table[discrete_state][action] = target_q
+        self.q_table[discrete_state][action] = (1 - self.learning_rate) * current_q + self.learning_rate * ((self.discount_factor * best_next_q) + reward)
         pass
 
     def decay_epsilon(self):
@@ -80,7 +80,8 @@ def train_agent(num_episodes = 1000, render = False):
             done = terminated or truncated
 
             agent.update(state, action, reward, next_state, done)
-
+            episode_over = done
+            total_reward += reward
             state = next_state
 
         agent.decay_epsilon()
@@ -96,6 +97,25 @@ def train_agent(num_episodes = 1000, render = False):
     print(f"\nTraining complete!\n")
     return agent, episode_rewards
 
+def test_agent(agent, num_episodes = 5, render = False):
+    env = gym.make('Acrobot-v1', render_mode = 'human' if render else None)
+    episode_rewards = []
+    for episode in range(num_episodes):
+        state, _ = env.reset()
+        total_reward = 0
+        episode_over = False
+        while not episode_over:
+            action = agent.get_action(state, False)
+            next_state, reward, terminated, truncated, info = env.step(action)
+            total_reward += reward
+            episode_over = truncated or terminated
+            state = next_state
+
+        episode_rewards.append(total_reward)
+        print(f"Episode {episode + 1}/{num_episodes}: Reward: {total_reward:.2f}")
 
 def main():
-    pass
+    agent, rewards = train_agent(num_episodes=6000)
+    test_agent(agent, num_episodes = 5, render = True)
+
+main()
